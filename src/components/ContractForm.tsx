@@ -88,7 +88,7 @@ export default function ContractForm({ type, settings, onSettingsChange }: Props
     return Object.keys(newErrors).length === 0;
   }, [fio, passport, issuedBy, issuedDate, address, deceasedFio, selectedServices, type]);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!validate()) return;
 
     const [day, month, year] = contractDate.split('.');
@@ -115,7 +115,7 @@ export default function ContractForm({ type, settings, onSettingsChange }: Props
     const fileName = generateFileName(contract);
     contract.pdfFileName = fileName;
 
-    const doc = generateContractPDF(contract, settings);
+    const doc = await generateContractPDF(contract, settings);
     const pdfDataUrl = doc.output('datauristring');
 
     addToArchive({
