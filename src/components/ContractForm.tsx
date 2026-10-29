@@ -22,6 +22,8 @@ export default function ContractForm({ type, settings, onSettingsChange }: Props
   const [selectedServices, setSelectedServices] = useState<SelectedService[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [success, setSuccess] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   const services = type === 'ritual' ? settings.ritualServices : settings.histologyServices;
   const enabledServices = services.filter(s => s.enabled);
@@ -89,61 +91,75 @@ export default function ContractForm({ type, settings, onSettingsChange }: Props
   }, [fio, passport, issuedBy, issuedDate, address, deceasedFio, selectedServices, type]);
 
   const handleSubmit = async () => {
-    if (!validate()) return;
-
-    const [day, month, year] = contractDate.split('.');
-    const passportDigits = passport.replace(/\s/g, '');
+    setError('');
     
-    const contract: ContractData = {
-      id: uuidv4(),
-      type,
-      fio,
-      passportSeries: passportDigits.slice(0, 4),
-      passportNumber: passportDigits.slice(4),
-      issuedBy,
-      issuedDate,
-      address,
-      deceasedFio: type === 'ritual' ? deceasedFio : undefined,
-      contractNumber,
-      contractDate,
-      selectedServices,
-      totalAmount,
-      createdAt: new Date().toISOString(),
-      pdfFileName: '',
-    };
+    if (!validate()) {
+      setError('Заполните все обязательные поля');
+      return;
+    }
 
-    const fileName = generateFileName(contract);
-    contract.pdfFileName = fileName;
+    setLoading(true);
 
-    const doc = await generateContractPDF(contract, settings);
-    const pdfDataUrl = doc.output('datauristring');
+    try {
+      const [day, month, year] = contractDate.split('.');
+      const passportDigits = passport.replace(/\s/g, '');
+      
+      const contract: ContractData = {
+        id: uuidv4(),
+        type,
+        fio,
+        passportSeries: passportDigits.slice(0, 4),
+        passportNumber: passportDigits.slice(4),
+        issuedBy,
+        issuedDate,
+        address,
+        deceasedFio: type === 'ritual' ? deceasedFio : undefined,
+        contractNumber,
+        contractDate,
+        selectedServices,
+        totalAmount,
+        createdAt: new Date().toISOString(),
+        pdfFileName: '',
+      };
 
-    addToArchive({
-      id: contract.id,
-      contract,
-      pdfDataUrl,
-      fileName,
-    });
+      const fileName = generateFileName(contract);
+      contract.pdfFileName = fileName;
 
-    // Increment counter
-    const newSettings = incrementCounter(type, settings);
-    onSettingsChange(newSettings);
+      const doc = await generateContractPDF(contract, settings);
+      const pdfDataUrl = doc.output('datauristring');
 
-    // Download PDF
-    doc.save(fileName);
+      addToArchive({
+        id: contract.id,
+        contract,
+        pdfDataUrl,
+        fileName,
+      });
 
-    // Reset form
-    setFio('');
-    setPassport('');
-    setIssuedBy('');
-    setIssuedDate('');
-    setAddress('');
-    setDeceasedFio('');
-    setContractDate(getTodayFormatted());
-    setSelectedServices([]);
-    setErrors({});
-    setSuccess(true);
-    setTimeout(() => setSuccess(false), 3000);
+      // Increment counter
+      const newSettings = incrementCounter(type, settings);
+      onSettingsChange(newSettings);
+
+      // Download PDF
+      doc.save(fileName);
+
+      // Reset form
+      setFio('');
+      setPassport('');
+      setIssuedBy('');
+      setIssuedDate('');
+      setAddress('');
+      setDeceasedFio('');
+      setContractDate(getTodayFormatted());
+      setSelectedServices([]);
+      setErrors({});
+      setSuccess(true);
+      setTimeout(() => setSuccess(false), 3000);
+    } catch (err) {
+      console.error('Error generating PDF:', err);
+      setError(`Ошибка при создании договора: ${err instanceof Error ? err.message : 'неизвестная ошибка'}`);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -163,6 +179,12 @@ export default function ContractForm({ type, settings, onSettingsChange }: Props
       {success && (
         <div className="mb-6 p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-700 text-sm">
           ✓ Договор успешно оформлен и сохранён в архив
+        </div>
+      )}
+
+      {error && (
+        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">
+          ✗ {error}
         </div>
       )}
 
@@ -326,9 +348,10 @@ export default function ContractForm({ type, settings, onSettingsChange }: Props
         {/* Submit */}
         <button
           onClick={handleSubmit}
-          className="w-full py-3.5 bg-gray-900 text-white rounded-xl font-medium hover:bg-gray-800 active:bg-gray-950 transition-colors shadow-sm"
+          disabled={loading}
+          className="w-full py-3.5 bg-gray-900 text-white rounded-xl font-medium hover:bg-gray-800 active:bg-gray-950 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          Оформить договор и сохранить в архив
+          {loading ? 'Создание договора...' : 'Оформить договор и сохранить в архив'}
         </button>
       </div>
     </div>
