@@ -5,17 +5,13 @@ const SETTINGS_KEY = 'contract_settings';
 const DB_NAME = 'contract_registry_db';
 const STORE_NAME = 'archive';
 
+// Услуги из реального образца ритуального договора
 const defaultRitualServices: Service[] = [
-  { id: uuidv4(), name: 'Туалет тела', price: 1500, enabled: true },
-  { id: uuidv4(), name: 'Бальзамирование тела', price: 3500, enabled: true },
-  { id: uuidv4(), name: 'Санитарно-гигиеническая обработка тела', price: 2000, enabled: true },
-  { id: uuidv4(), name: 'Одевание тела', price: 1000, enabled: true },
-  { id: uuidv4(), name: 'Предпохоронное сохранение тела (за 1 день)', price: 1800, enabled: true },
-  { id: uuidv4(), name: 'Прокат траурного зала', price: 3000, enabled: true },
-  { id: uuidv4(), name: 'Предоставление катафалка', price: 5000, enabled: true },
-  { id: uuidv4(), name: 'Копка могилы', price: 4500, enabled: true },
-  { id: uuidv4(), name: 'Установка ограды', price: 6000, enabled: true },
-  { id: uuidv4(), name: 'Установка памятника', price: 8000, enabled: true },
+  { id: uuidv4(), name: 'Туалет тела', price: 7100.00, enabled: true },
+  { id: uuidv4(), name: 'Бальзамирование тела', price: 3535.00, enabled: true },
+  { id: uuidv4(), name: 'Прокат (аренда) траурного зала', price: 2385.00, enabled: true },
+  { id: uuidv4(), name: 'Предпохоронное сохранение тела умершего', price: 1880.00, enabled: true },
+  { id: uuidv4(), name: 'Санитарно-гигиеническая обработка тела', price: 3575.00, enabled: true },
 ];
 
 // Услуги из реального образца договора по гистологии
