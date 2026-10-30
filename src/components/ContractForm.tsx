@@ -128,7 +128,7 @@ export default function ContractForm({ type, settings, onSettingsChange }: Props
       const doc = await generateContractPDF(contract, settings);
       const pdfDataUrl = doc.output('datauristring');
 
-      addToArchive({
+      await addToArchive({
         id: contract.id,
         contract,
         pdfDataUrl,
