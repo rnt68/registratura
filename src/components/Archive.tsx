@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { ArchiveRecord } from '../types';
-import { loadArchive, removeFromArchive, saveArchive } from '../utils/storage';
+import { loadArchive, removeFromArchive } from '../utils/storage';
 import { Search, Download, Trash2, FileText, Eye, X } from 'lucide-react';
 
 export default function Archive() {
@@ -9,7 +9,7 @@ export default function Archive() {
   const [previewRecord, setPreviewRecord] = useState<ArchiveRecord | null>(null);
 
   useEffect(() => {
-    setRecords(loadArchive());
+    loadArchive().then(setRecords);
   }, []);
 
   const filteredRecords = records.filter(r => {
@@ -30,10 +30,11 @@ export default function Archive() {
     link.click();
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (!confirm('Удалить договор из архива приложения?\nКопия файла на сервере будет сохранена.')) return;
-    removeFromArchive(id);
-    setRecords(loadArchive());
+    await removeFromArchive(id);
+    const updated = await loadArchive();
+    setRecords(updated);
   };
 
   const handlePreview = (record: ArchiveRecord) => {
