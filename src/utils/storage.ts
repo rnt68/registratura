@@ -18,13 +18,13 @@ const defaultRitualServices: Service[] = [
   { id: uuidv4(), name: 'Установка памятника', price: 8000, enabled: true },
 ];
 
+// Услуги из реального образца договора по гистологии
 const defaultHistologyServices: Service[] = [
-  { id: uuidv4(), name: 'Прижизненное гистологическое исследование', price: 800, enabled: true },
-  { id: uuidv4(), name: 'Посмертное гистологическое исследование', price: 1200, enabled: true },
-  { id: uuidv4(), name: 'Иммуногистохимическое исследование', price: 2500, enabled: true },
-  { id: uuidv4(), name: 'Повторное исследование ранее приготовленных препаратов', price: 600, enabled: true },
-  { id: uuidv4(), name: 'Срочное исследование (в течение 1 часа)', price: 1500, enabled: true },
-  { id: uuidv4(), name: 'Консультация готовых препаратов', price: 500, enabled: true },
+  { id: uuidv4(), name: 'Проведение патолого-анатомических исследований первой, второй, третьей, четвертой и пятой (только обычные гистологические исследования) категории сложности', price: 1635.00, enabled: true },
+  { id: uuidv4(), name: 'Иммуногистохимическое исследование операционного и биопсийного материала (без стоимости дополнительных антител)', price: 6752.50, enabled: true },
+  { id: uuidv4(), name: 'Гистохимическое исследование операционного и биопсийного материала', price: 2017.00, enabled: true },
+  { id: uuidv4(), name: 'Консультация готового препарата (без перерезки)', price: 634.00, enabled: true },
+  { id: uuidv4(), name: 'Консультация готового препарата (с перерезкой)', price: 1514.00, enabled: true },
 ];
 
 export function getDefaultSettings(): Settings {
@@ -33,7 +33,7 @@ export function getDefaultSettings(): Settings {
     histologySuffix: '/01',
     ritualCounter: 1,
     histologyCounter: 1,
-    signerPosition: 'Главный врач',
+    signerPosition: 'И.О. главного врача',
     signerFio: 'Молчанов Олег Васильевич',
     ritualNdsText: 'в том числе НДС (по конкретно оказанной услуге):',
     histologyNdsText: 'НДС не облагается в соответствии с подп. 2 п. 2 ст. 149 НК РФ',
