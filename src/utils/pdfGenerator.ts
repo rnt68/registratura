@@ -60,7 +60,7 @@ function createHistologyContractHTML(contract: ContractData, settings: Settings)
         }
         .page {
             width: 794px;
-            padding: 20mm 15mm 20mm 25mm;
+            padding: 15mm 15mm 15mm 25mm;
             box-sizing: border-box;
             background: white;
         }
@@ -400,7 +400,7 @@ function createRitualContractHTML(contract: ContractData, settings: Settings): s
         }
         .page {
             width: 794px;
-            padding: 20mm 15mm 20mm 25mm;
+            padding: 15mm 15mm 15mm 25mm;
             box-sizing: border-box;
             background: white;
         }
@@ -742,32 +742,61 @@ export async function generateContractPDF(contract: ContractData, settings: Sett
   try {
     await new Promise(resolve => setTimeout(resolve, 300));
     
-    // Находим все страницы
-    const pages = container.querySelectorAll('.page');
+    // Рендерим весь документ в один большой canvas
+    const fullCanvas = await html2canvas(container, {
+      scale: 2,
+      useCORS: true,
+      logging: false,
+      backgroundColor: '#ffffff',
+      windowWidth: 794,
+    });
     
-    for (let i = 0; i < pages.length; i++) {
-      if (i > 0) {
+    const imgWidth = fullCanvas.width;
+    const imgHeight = fullCanvas.height;
+    
+    // A4: 210mm x 297mm
+    // При scale: 2 и ширине 794px, imgWidth = 1588px
+    // Соотношение: 210mm / 1588px = 0.1322 мм/пиксель
+    // Высота страницы в пикселях: 297mm / 0.1322 = 2246px
+    // Отступы: 15mm сверху и 15mm снизу = 30mm
+    // Полезная высота: 267mm / 0.1322 = 2020px
+    const pageHeightPx = Math.floor(((pdfHeight - 30) / pdfWidth) * imgWidth);
+    
+    // Разрезаем большой canvas на страницы A4
+    let currentY = 0;
+    let isFirstPage = true;
+    
+    while (currentY < imgHeight) {
+      if (!isFirstPage) {
         doc.addPage();
       }
+      isFirstPage = false;
       
-      const page = pages[i] as HTMLElement;
+      const sliceHeight = Math.min(pageHeightPx, imgHeight - currentY);
       
-      // Рендерим каждую страницу отдельно
-      const pageCanvas = await html2canvas(page, {
-        scale: 2,
-        useCORS: true,
-        logging: false,
-        backgroundColor: '#ffffff',
-        width: 794,
-        windowWidth: 794,
-      });
+      // Создаём canvas для одной страницы
+      const pageCanvas = document.createElement('canvas');
+      pageCanvas.width = imgWidth;
+      pageCanvas.height = sliceHeight;
       
-      const imgWidth = pageCanvas.width;
-      const imgHeight = pageCanvas.height;
-      const ratio = pdfWidth / imgWidth;
-      const scaledHeight = imgHeight * ratio;
+      const ctx = pageCanvas.getContext('2d');
+      if (ctx) {
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, imgWidth, sliceHeight);
+        ctx.drawImage(
+          fullCanvas,
+          0, currentY, imgWidth, sliceHeight,
+          0, 0, imgWidth, sliceHeight
+        );
+      }
       
-      doc.addImage(pageCanvas.toDataURL('image/png'), 'PNG', 0, 0, pdfWidth, scaledHeight);
+      const pageImgData = pageCanvas.toDataURL('image/png');
+      
+      // Добавляем изображение на страницу PDF с отступом 15mm сверху
+      const scaledHeight = (sliceHeight / imgWidth) * pdfWidth;
+      doc.addImage(pageImgData, 'PNG', 0, 15, pdfWidth, scaledHeight);
+      
+      currentY += pageHeightPx;
     }
   } finally {
     document.body.removeChild(container);
