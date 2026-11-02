@@ -155,6 +155,7 @@ function createHistologyContractHTML(contract: ContractData, settings: Settings)
 </head>
 <body>
     <div class="contract-container">
+    <div class="contract-section">
     <div class="page">
         <h1>Договор оказания платных услуг № ${contract.contractNumber}</h1>
         
@@ -273,7 +274,9 @@ function createHistologyContractHTML(contract: ContractData, settings: Settings)
         </p>
     </div>
 
-    <div class="page" style="page-break-before: always;">
+    </div>
+    <div class="contract-section">
+    <div class="page">
         <h2>Приложение №1 к договору № ${contract.contractNumber} от ${contract.contractDate}</h2>
         <h3>Перечень работ (услуг)</h3>
 
@@ -305,7 +308,9 @@ function createHistologyContractHTML(contract: ContractData, settings: Settings)
         </table>
     </div>
 
-    <div class="page" style="page-break-before: always;">
+    </div>
+    <div class="contract-section">
+    <div class="page">
         <h2>Акт об оказании услуг к договору № ${contract.contractNumber} от ${contract.contractDate}г.</h2>
         <p class="no-indent">
             Исполнитель Тамбовское областное государственное бюджетное учреждение здравоохранения «Патологоанатомическое бюро» (ТОГБУЗ «ПБ»), именуемое далее «Исполнитель», в лице ${settings.signerPosition.toLowerCase()} ${settings.signerFio}, с одной стороны, и Заказчик с другой стороны составили настоящий акт о том, что Исполнитель выполнил, а Заказчик принял следующие работы:
@@ -494,6 +499,7 @@ function createRitualContractHTML(contract: ContractData, settings: Settings): s
     </style>
 </head>
 <body>
+    <div class="contract-section">
     <div class="page">
         <h1>Договор оказания платных услуг № ${contract.contractNumber}</h1>
         
@@ -613,7 +619,9 @@ function createRitualContractHTML(contract: ContractData, settings: Settings): s
         </p>
     </div>
 
-    <div class="page page-break">
+    </div>
+    <div class="contract-section">
+    <div class="page">
         <h2>Приложение №1 к договору № ${contract.contractNumber} от ${contract.contractDate}</h2>
         <h3>Перечень работ (услуг)</h3>
 
@@ -652,7 +660,9 @@ function createRitualContractHTML(contract: ContractData, settings: Settings): s
         </table>
     </div>
 
-    <div class="page" style="page-break-before: always;">
+    </div>
+    <div class="contract-section">
+    <div class="page">
         <h2>Акт об оказании услуг к договору № ${contract.contractNumber} от ${contract.contractDate}</h2>
         <p class="no-indent">
             Исполнитель Тамбовское областное государственное бюджетное учреждение здравоохранения «Патологоанатомическое бюро» (ТОГБУЗ «ПБ»), именуемое далее «Исполнитель», в лице ${settings.signerPosition.toLowerCase()} ${settings.signerFio}, с одной стороны, и Заказчик с другой стороны составили настоящий акт о том, что Исполнитель выполнил, а Заказчик принял следующие работы:
@@ -742,61 +752,67 @@ export async function generateContractPDF(contract: ContractData, settings: Sett
   try {
     await new Promise(resolve => setTimeout(resolve, 300));
     
-    // Рендерим весь документ в один большой canvas
-    const fullCanvas = await html2canvas(container, {
-      scale: 2,
-      useCORS: true,
-      logging: false,
-      backgroundColor: '#ffffff',
-      windowWidth: 794,
-    });
+    // Находим все логические блоки (договор, приложение, акт)
+    const sections = container.querySelectorAll('.contract-section');
     
-    const imgWidth = fullCanvas.width;
-    const imgHeight = fullCanvas.height;
-    
-    // A4: 210mm x 297mm
-    // При scale: 2 и ширине 794px, imgWidth = 1588px
-    // Соотношение: 210mm / 1588px = 0.1322 мм/пиксель
-    // Высота страницы в пикселях: 297mm / 0.1322 = 2246px
-    // Отступы: 15mm сверху и 15mm снизу = 30mm
-    // Полезная высота: 267mm / 0.1322 = 2020px
-    const pageHeightPx = Math.floor(((pdfHeight - 30) / pdfWidth) * imgWidth);
-    
-    // Разрезаем большой canvas на страницы A4
-    let currentY = 0;
-    let isFirstPage = true;
-    
-    while (currentY < imgHeight) {
-      if (!isFirstPage) {
-        doc.addPage();
+    for (let sectionIndex = 0; sectionIndex < sections.length; sectionIndex++) {
+      const section = sections[sectionIndex] as HTMLElement;
+      
+      // Рендерим секцию в canvas
+      const sectionCanvas = await html2canvas(section, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#ffffff',
+        windowWidth: 794,
+      });
+      
+      const imgWidth = sectionCanvas.width;
+      const imgHeight = sectionCanvas.height;
+      
+      // A4: 210mm x 297mm
+      // При scale: 2 и ширине 794px, imgWidth = 1588px
+      // Соотношение: 210mm / 1588px = 0.1322 мм/пиксель
+      // Высота страницы в пикселях: 297mm / 0.1322 = 2246px
+      // Отступы: 15mm сверху и 15mm снизу = 30mm
+      // Полезная высота: 267mm / 0.1322 = 2020px
+      const pageHeightPx = Math.floor(((pdfHeight - 30) / pdfWidth) * imgWidth);
+      
+      // Разрезаем секцию на страницы A4
+      let currentY = 0;
+      
+      while (currentY < imgHeight) {
+        // Добавляем новую страницу (кроме первой)
+        if (currentY > 0 || sectionIndex > 0) {
+          doc.addPage();
+        }
+        
+        const sliceHeight = Math.min(pageHeightPx, imgHeight - currentY);
+        
+        // Создаём canvas для одной страницы
+        const pageCanvas = document.createElement('canvas');
+        pageCanvas.width = imgWidth;
+        pageCanvas.height = sliceHeight;
+        
+        const ctx = pageCanvas.getContext('2d');
+        if (ctx) {
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, imgWidth, sliceHeight);
+          ctx.drawImage(
+            sectionCanvas,
+            0, currentY, imgWidth, sliceHeight,
+            0, 0, imgWidth, sliceHeight
+          );
+        }
+        
+        const pageImgData = pageCanvas.toDataURL('image/png');
+        
+        // Добавляем изображение на страницу PDF с отступом 15mm сверху
+        const scaledHeight = (sliceHeight / imgWidth) * pdfWidth;
+        doc.addImage(pageImgData, 'PNG', 0, 15, pdfWidth, scaledHeight);
+        
+        currentY += pageHeightPx;
       }
-      isFirstPage = false;
-      
-      const sliceHeight = Math.min(pageHeightPx, imgHeight - currentY);
-      
-      // Создаём canvas для одной страницы
-      const pageCanvas = document.createElement('canvas');
-      pageCanvas.width = imgWidth;
-      pageCanvas.height = sliceHeight;
-      
-      const ctx = pageCanvas.getContext('2d');
-      if (ctx) {
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(0, 0, imgWidth, sliceHeight);
-        ctx.drawImage(
-          fullCanvas,
-          0, currentY, imgWidth, sliceHeight,
-          0, 0, imgWidth, sliceHeight
-        );
-      }
-      
-      const pageImgData = pageCanvas.toDataURL('image/png');
-      
-      // Добавляем изображение на страницу PDF с отступом 15mm сверху
-      const scaledHeight = (sliceHeight / imgWidth) * pdfWidth;
-      doc.addImage(pageImgData, 'PNG', 0, 15, pdfWidth, scaledHeight);
-      
-      currentY += pageHeightPx;
     }
   } finally {
     document.body.removeChild(container);
