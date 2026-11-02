@@ -711,18 +711,16 @@ export async function generateContractPDF(contract: ContractData, settings: Sett
     : createRitualContractHTML(contract, settings);
   
   const container = document.createElement('div');
-  container.style.position = 'fixed';
+  container.style.position = 'absolute';
   container.style.top = '0';
-  container.style.left = '0';
+  container.style.left = '-9999px';
   container.style.width = '794px';
-  container.style.zIndex = '-1';
-  container.style.opacity = '0';
-  container.style.pointerEvents = 'none';
+  container.style.backgroundColor = '#ffffff';
   container.innerHTML = html;
   document.body.appendChild(container);
   
   try {
-    await new Promise(resolve => setTimeout(resolve, 150));
+    await new Promise(resolve => setTimeout(resolve, 300));
     
     // Рендерим весь контент как один большой canvas
     const fullCanvas = await html2canvas(container, {
@@ -731,13 +729,18 @@ export async function generateContractPDF(contract: ContractData, settings: Sett
       logging: false,
       backgroundColor: '#ffffff',
       windowWidth: 794,
+      height: container.scrollHeight,
+      windowHeight: container.scrollHeight,
     });
     
-    const fullImgData = fullCanvas.toDataURL('image/png');
     const imgWidth = fullCanvas.width;
     const imgHeight = fullCanvas.height;
-    const ratio = pdfWidth / imgWidth;
-    const pageHeightPx = Math.floor(pdfHeight / ratio);
+    
+    // A4: 210mm x 297mm
+    // При scale: 2 и ширине 794px, imgWidth = 1588px
+    // Соотношение: 210mm / 1588px = 0.1322 мм/пиксель
+    // Высота страницы в пикселях: 297mm / 0.1322 = 2246px
+    const pageHeightPx = Math.floor((pdfHeight / pdfWidth) * imgWidth);
     
     // Разрезаем большой canvas на страницы A4
     let currentY = 0;
@@ -749,25 +752,29 @@ export async function generateContractPDF(contract: ContractData, settings: Sett
       }
       isFirstPage = false;
       
+      const sliceHeight = Math.min(pageHeightPx, imgHeight - currentY);
+      
       // Создаём canvas для одной страницы
       const pageCanvas = document.createElement('canvas');
       pageCanvas.width = imgWidth;
-      pageCanvas.height = Math.min(pageHeightPx, imgHeight - currentY);
+      pageCanvas.height = sliceHeight;
       
       const ctx = pageCanvas.getContext('2d');
       if (ctx) {
         ctx.fillStyle = '#ffffff';
-        ctx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
+        ctx.fillRect(0, 0, imgWidth, sliceHeight);
         ctx.drawImage(
           fullCanvas,
-          0, currentY, imgWidth, pageCanvas.height,
-          0, 0, imgWidth, pageCanvas.height
+          0, currentY, imgWidth, sliceHeight,
+          0, 0, imgWidth, sliceHeight
         );
       }
       
       const pageImgData = pageCanvas.toDataURL('image/png');
-      const scaledHeight = pageCanvas.height * ratio;
       
+      // Добавляем изображение на страницу PDF
+      // Ширина всегда pdfWidth (210mm), высота пропорциональна
+      const scaledHeight = (sliceHeight / imgWidth) * pdfWidth;
       doc.addImage(pageImgData, 'PNG', 0, 0, pdfWidth, scaledHeight);
       
       currentY += pageHeightPx;
