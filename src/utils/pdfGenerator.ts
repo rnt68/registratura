@@ -91,7 +91,7 @@ function createHistologyContractHTML(contract: ContractData, settings: Settings)
         }
         p {
             font-size: 12pt;
-            line-height: 1.3;
+            line-height: 1;
             text-align: justify;
             margin-bottom: 10px;
             text-indent: 1.25cm;
@@ -106,7 +106,7 @@ function createHistologyContractHTML(contract: ContractData, settings: Settings)
         }
         li {
             font-size: 12pt;
-            line-height: 1.3;
+            line-height: 1;
             text-align: justify;
         }
         table {
@@ -255,8 +255,16 @@ function createHistologyContractHTML(contract: ContractData, settings: Settings)
                     Адрес: ${contract.address}<br>
                     Паспорт: ${contract.passportSeries} ${contract.passportNumber} ${contract.issuedBy} ${contract.issuedDate}г.
                 </div>
-                <br><br><br>
-                    <p>___________________ /____________________/</p>
+                <br>
+                <br>
+                <br>
+                <br>
+                <br>
+                <br>
+                <br>
+                <br>
+                <br>
+                ___________________ /____________________/
             </div>
         </div>
         
@@ -265,7 +273,7 @@ function createHistologyContractHTML(contract: ContractData, settings: Settings)
         </p>
     </div>
 
-    <div class="page page-break">
+    <div class="page" style="page-break-before: always;">
         <h2>Приложение №1 к договору № ${contract.contractNumber} от ${contract.contractDate}</h2>
         <h3>Перечень работ (услуг)</h3>
 
@@ -297,7 +305,7 @@ function createHistologyContractHTML(contract: ContractData, settings: Settings)
         </table>
     </div>
 
-    <div class="page">
+    <div class="page" style="page-break-before: always;">
         <h2>Акт об оказании услуг к договору № ${contract.contractNumber} от ${contract.contractDate}г.</h2>
         <p class="no-indent">
             Исполнитель Тамбовское областное государственное бюджетное учреждение здравоохранения «Патологоанатомическое бюро» (ТОГБУЗ «ПБ»), именуемое далее «Исполнитель», в лице ${settings.signerPosition.toLowerCase()} ${settings.signerFio}, с одной стороны, и Заказчик с другой стороны составили настоящий акт о том, что Исполнитель выполнил, а Заказчик принял следующие работы:
@@ -587,7 +595,15 @@ function createRitualContractHTML(contract: ContractData, settings: Settings): s
                     Адрес: ${contract.address}<br>
                     Паспорт: ${contract.passportSeries} ${contract.passportNumber} выдан: ${contract.issuedBy} ${contract.issuedDate} г.
                 </div>
-                <br><br><br>
+                <br>
+                <br>
+                <br>
+                <br>
+                <br>
+                <br>
+                <br>
+                <br>
+                <br>
                 _______________________________________
             </div>
         </div>
@@ -636,7 +652,7 @@ function createRitualContractHTML(contract: ContractData, settings: Settings): s
         </table>
     </div>
 
-    <div class="page">
+    <div class="page" style="page-break-before: always;">
         <h2>Акт об оказании услуг к договору № ${contract.contractNumber} от ${contract.contractDate}</h2>
         <p class="no-indent">
             Исполнитель Тамбовское областное государственное бюджетное учреждение здравоохранения «Патологоанатомическое бюро» (ТОГБУЗ «ПБ»), именуемое далее «Исполнитель», в лице ${settings.signerPosition.toLowerCase()} ${settings.signerFio}, с одной стороны, и Заказчик с другой стороны составили настоящий акт о том, что Исполнитель выполнил, а Заказчик принял следующие работы:
@@ -726,61 +742,32 @@ export async function generateContractPDF(contract: ContractData, settings: Sett
   try {
     await new Promise(resolve => setTimeout(resolve, 300));
     
-    // Рендерим весь контент как один большой canvas
-    const fullCanvas = await html2canvas(container, {
-      scale: 2,
-      useCORS: true,
-      logging: false,
-      backgroundColor: '#ffffff',
-      windowWidth: 794,
-    });
+    // Находим все страницы
+    const pages = container.querySelectorAll('.page');
     
-    const imgWidth = fullCanvas.width;
-    const imgHeight = fullCanvas.height;
-    
-    // A4: 210mm x 297mm
-    // При scale: 2 и ширине 794px, imgWidth = 1588px
-    // Соотношение: 210mm / 1588px = 0.1322 мм/пиксель
-    // Высота страницы в пикселях: 297mm / 0.1322 = 2246px
-    // Отступы: 20mm сверху и 20mm снизу = 40mm
-    // Полезная высота: 257mm / 0.1322 = 1944px
-    const pageHeightPx = Math.floor(((pdfHeight - 40) / pdfWidth) * imgWidth);
-    
-    // Разрезаем большой canvas на страницы A4
-    let currentY = 0;
-    let isFirstPage = true;
-    
-    while (currentY < imgHeight) {
-      if (!isFirstPage) {
+    for (let i = 0; i < pages.length; i++) {
+      if (i > 0) {
         doc.addPage();
       }
-      isFirstPage = false;
       
-      const sliceHeight = Math.min(pageHeightPx, imgHeight - currentY);
+      const page = pages[i] as HTMLElement;
       
-      // Создаём canvas для одной страницы
-      const pageCanvas = document.createElement('canvas');
-      pageCanvas.width = imgWidth;
-      pageCanvas.height = sliceHeight;
+      // Рендерим каждую страницу отдельно
+      const pageCanvas = await html2canvas(page, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#ffffff',
+        width: 794,
+        windowWidth: 794,
+      });
       
-      const ctx = pageCanvas.getContext('2d');
-      if (ctx) {
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(0, 0, imgWidth, sliceHeight);
-        ctx.drawImage(
-          fullCanvas,
-          0, currentY, imgWidth, sliceHeight,
-          0, 0, imgWidth, sliceHeight
-        );
-      }
+      const imgWidth = pageCanvas.width;
+      const imgHeight = pageCanvas.height;
+      const ratio = pdfWidth / imgWidth;
+      const scaledHeight = imgHeight * ratio;
       
-      const pageImgData = pageCanvas.toDataURL('image/png');
-      
-      // Добавляем изображение на страницу PDF с отступом 20mm сверху
-      const scaledHeight = (sliceHeight / imgWidth) * pdfWidth;
-      doc.addImage(pageImgData, 'PNG', 0, 20, pdfWidth, scaledHeight);
-      
-      currentY += pageHeightPx;
+      doc.addImage(pageCanvas.toDataURL('image/png'), 'PNG', 0, 0, pdfWidth, scaledHeight);
     }
   } finally {
     document.body.removeChild(container);
