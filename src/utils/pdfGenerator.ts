@@ -56,10 +56,12 @@ function createHistologyContractHTML(contract: ContractData, settings: Settings)
         }
         .page {
             width: 794px;
-            min-height: 1123px;
             padding: 20mm 15mm 20mm 25mm;
             box-sizing: border-box;
             background: white;
+        }
+        .page-break {
+            page-break-after: always;
         }
         h1 {
             font-size: 14pt;
@@ -387,7 +389,6 @@ function createRitualContractHTML(contract: ContractData, settings: Settings): s
         }
         .page {
             width: 794px;
-            min-height: 1123px;
             padding: 20mm 15mm 20mm 25mm;
             box-sizing: border-box;
             background: white;
@@ -703,6 +704,7 @@ function createRitualContractHTML(contract: ContractData, settings: Settings): s
 export async function generateContractPDF(contract: ContractData, settings: Settings): Promise<jsPDF> {
   const doc = new jsPDF('p', 'mm', 'a4');
   const pdfWidth = doc.internal.pageSize.getWidth();
+  const pdfHeight = doc.internal.pageSize.getHeight();
   
   const html = contract.type === 'histology' 
     ? createHistologyContractHTML(contract, settings)
@@ -720,27 +722,55 @@ export async function generateContractPDF(contract: ContractData, settings: Sett
   document.body.appendChild(container);
   
   try {
-    await new Promise(resolve => setTimeout(resolve, 100));
+    await new Promise(resolve => setTimeout(resolve, 150));
     
-    const pages = container.querySelectorAll('.page');
+    // Рендерим весь контент как один большой canvas
+    const fullCanvas = await html2canvas(container, {
+      scale: 2,
+      useCORS: true,
+      logging: false,
+      backgroundColor: '#ffffff',
+      windowWidth: 794,
+    });
     
-    for (let i = 0; i < pages.length; i++) {
-      if (i > 0) doc.addPage();
+    const fullImgData = fullCanvas.toDataURL('image/png');
+    const imgWidth = fullCanvas.width;
+    const imgHeight = fullCanvas.height;
+    const ratio = pdfWidth / imgWidth;
+    const pageHeightPx = Math.floor(pdfHeight / ratio);
+    
+    // Разрезаем большой canvas на страницы A4
+    let currentY = 0;
+    let isFirstPage = true;
+    
+    while (currentY < imgHeight) {
+      if (!isFirstPage) {
+        doc.addPage();
+      }
+      isFirstPage = false;
       
-      const canvas = await html2canvas(pages[i] as HTMLElement, {
-        scale: 2,
-        useCORS: true,
-        logging: false,
-        backgroundColor: '#ffffff',
-      });
+      // Создаём canvas для одной страницы
+      const pageCanvas = document.createElement('canvas');
+      pageCanvas.width = imgWidth;
+      pageCanvas.height = Math.min(pageHeightPx, imgHeight - currentY);
       
-      const imgData = canvas.toDataURL('image/png');
-      const imgWidth = canvas.width;
-      const imgHeight = canvas.height;
-      const ratio = pdfWidth / imgWidth;
-      const scaledHeight = imgHeight * ratio;
+      const ctx = pageCanvas.getContext('2d');
+      if (ctx) {
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
+        ctx.drawImage(
+          fullCanvas,
+          0, currentY, imgWidth, pageCanvas.height,
+          0, 0, imgWidth, pageCanvas.height
+        );
+      }
       
-      doc.addImage(imgData, 'PNG', 0, 0, pdfWidth, scaledHeight);
+      const pageImgData = pageCanvas.toDataURL('image/png');
+      const scaledHeight = pageCanvas.height * ratio;
+      
+      doc.addImage(pageImgData, 'PNG', 0, 0, pdfWidth, scaledHeight);
+      
+      currentY += pageHeightPx;
     }
   } finally {
     document.body.removeChild(container);
