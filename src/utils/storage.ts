@@ -2,28 +2,25 @@ import { Settings, ArchiveRecord, Service } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 
 const SETTINGS_KEY = 'contract_settings';
-const ARCHIVE_KEY = 'contract_archive';
+const DB_NAME = 'contract_registry_db';
+const STORE_NAME = 'archive';
 
+// Услуги из реального образца ритуального договора
 const defaultRitualServices: Service[] = [
-  { id: uuidv4(), name: 'Туалет тела', price: 1500, enabled: true },
-  { id: uuidv4(), name: 'Бальзамирование тела', price: 3500, enabled: true },
-  { id: uuidv4(), name: 'Санитарно-гигиеническая обработка тела', price: 2000, enabled: true },
-  { id: uuidv4(), name: 'Одевание тела', price: 1000, enabled: true },
-  { id: uuidv4(), name: 'Предпохоронное сохранение тела (за 1 день)', price: 1800, enabled: true },
-  { id: uuidv4(), name: 'Прокат траурного зала', price: 3000, enabled: true },
-  { id: uuidv4(), name: 'Предоставление катафалка', price: 5000, enabled: true },
-  { id: uuidv4(), name: 'Копка могилы', price: 4500, enabled: true },
-  { id: uuidv4(), name: 'Установка ограды', price: 6000, enabled: true },
-  { id: uuidv4(), name: 'Установка памятника', price: 8000, enabled: true },
+  { id: uuidv4(), name: 'Туалет тела', price: 7100.00, enabled: true },
+  { id: uuidv4(), name: 'Бальзамирование тела', price: 3535.00, enabled: true },
+  { id: uuidv4(), name: 'Прокат (аренда) траурного зала', price: 2385.00, enabled: true },
+  { id: uuidv4(), name: 'Предпохоронное сохранение тела умершего', price: 1880.00, enabled: true },
+  { id: uuidv4(), name: 'Санитарно-гигиеническая обработка тела', price: 3575.00, enabled: true },
 ];
 
+// Услуги из реального образца договора по гистологии
 const defaultHistologyServices: Service[] = [
-  { id: uuidv4(), name: 'Прижизненное гистологическое исследование', price: 800, enabled: true },
-  { id: uuidv4(), name: 'Посмертное гистологическое исследование', price: 1200, enabled: true },
-  { id: uuidv4(), name: 'Иммуногистохимическое исследование', price: 2500, enabled: true },
-  { id: uuidv4(), name: 'Повторное исследование ранее приготовленных препаратов', price: 600, enabled: true },
-  { id: uuidv4(), name: 'Срочное исследование (в течение 1 часа)', price: 1500, enabled: true },
-  { id: uuidv4(), name: 'Консультация готовых препаратов', price: 500, enabled: true },
+  { id: uuidv4(), name: 'Проведение патолого-анатомических исследований первой, второй, третьей, четвертой и пятой (только обычные гистологические исследования) категории сложности', price: 1635.00, enabled: true },
+  { id: uuidv4(), name: 'Иммуногистохимическое исследование операционного и биопсийного материала (без стоимости дополнительных антител)', price: 6752.50, enabled: true },
+  { id: uuidv4(), name: 'Гистохимическое исследование операционного и биопсийного материала', price: 2017.00, enabled: true },
+  { id: uuidv4(), name: 'Консультация готового препарата (без перерезки)', price: 634.00, enabled: true },
+  { id: uuidv4(), name: 'Консультация готового препарата (с перерезкой)', price: 1514.00, enabled: true },
 ];
 
 export function getDefaultSettings(): Settings {
@@ -32,7 +29,7 @@ export function getDefaultSettings(): Settings {
     histologySuffix: '/01',
     ritualCounter: 1,
     histologyCounter: 1,
-    signerPosition: 'Главный врач',
+    signerPosition: 'И.О. главного врача',
     signerFio: 'Молчанов Олег Васильевич',
     ritualNdsText: 'в том числе НДС (по конкретно оказанной услуге):',
     histologyNdsText: 'НДС не облагается в соответствии с подп. 2 п. 2 ст. 149 НК РФ',
@@ -57,32 +54,72 @@ export function saveSettings(settings: Settings): void {
   localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
 }
 
-export function loadArchive(): ArchiveRecord[] {
+// IndexedDB helpers
+function openDB(): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, 1);
+    
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => resolve(request.result);
+    
+    request.onupgradeneeded = (event) => {
+      const db = (event.target as IDBOpenDBRequest).result;
+      if (!db.objectStoreNames.contains(STORE_NAME)) {
+        db.createObjectStore(STORE_NAME, { keyPath: 'id' });
+      }
+    };
+  });
+}
+
+export async function loadArchive(): Promise<ArchiveRecord[]> {
   try {
-    const data = localStorage.getItem(ARCHIVE_KEY);
-    if (data) {
-      return JSON.parse(data);
-    }
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(STORE_NAME, 'readonly');
+      const store = transaction.objectStore(STORE_NAME);
+      const request = store.getAll();
+      
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => resolve(request.result || []);
+    });
   } catch (e) {
     console.error('Error loading archive:', e);
+    return [];
   }
-  return [];
 }
 
-export function saveArchive(records: ArchiveRecord[]): void {
-  localStorage.setItem(ARCHIVE_KEY, JSON.stringify(records));
+export async function addToArchive(record: ArchiveRecord): Promise<void> {
+  try {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(STORE_NAME, 'readwrite');
+      const store = transaction.objectStore(STORE_NAME);
+      const request = store.put(record);
+      
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => resolve();
+    });
+  } catch (e) {
+    console.error('Error adding to archive:', e);
+    throw e;
+  }
 }
 
-export function addToArchive(record: ArchiveRecord): void {
-  const records = loadArchive();
-  records.push(record);
-  saveArchive(records);
-}
-
-export function removeFromArchive(id: string): void {
-  const records = loadArchive();
-  const filtered = records.filter(r => r.id !== id);
-  saveArchive(filtered);
+export async function removeFromArchive(id: string): Promise<void> {
+  try {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(STORE_NAME, 'readwrite');
+      const store = transaction.objectStore(STORE_NAME);
+      const request = store.delete(id);
+      
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => resolve();
+    });
+  } catch (e) {
+    console.error('Error removing from archive:', e);
+    throw e;
+  }
 }
 
 export function getNextContractNumber(type: 'ritual' | 'histology', settings: Settings): string {
