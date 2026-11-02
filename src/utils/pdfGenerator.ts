@@ -54,14 +54,15 @@ function createHistologyContractHTML(contract: ContractData, settings: Settings)
             padding: 0;
             color: #000;
         }
+        .contract-container {
+            width: 794px;
+            background: white;
+        }
         .page {
             width: 794px;
             padding: 20mm 15mm 20mm 25mm;
             box-sizing: border-box;
             background: white;
-        }
-        .page-break {
-            page-break-after: always;
         }
         h1 {
             font-size: 14pt;
@@ -153,6 +154,7 @@ function createHistologyContractHTML(contract: ContractData, settings: Settings)
     </style>
 </head>
 <body>
+    <div class="contract-container">
     <div class="page">
         <h1>Договор оказания платных услуг № ${contract.contractNumber}</h1>
         
@@ -365,6 +367,7 @@ function createHistologyContractHTML(contract: ContractData, settings: Settings)
                 _________________________ /____________________/
             </div>
         </div>
+    </div>
     </div>
 </body>
 </html>
@@ -696,6 +699,7 @@ function createRitualContractHTML(contract: ContractData, settings: Settings): s
             </div>
         </div>
     </div>
+    </div>
 </body>
 </html>
   `;
@@ -729,8 +733,6 @@ export async function generateContractPDF(contract: ContractData, settings: Sett
       logging: false,
       backgroundColor: '#ffffff',
       windowWidth: 794,
-      height: container.scrollHeight,
-      windowHeight: container.scrollHeight,
     });
     
     const imgWidth = fullCanvas.width;
@@ -740,7 +742,9 @@ export async function generateContractPDF(contract: ContractData, settings: Sett
     // При scale: 2 и ширине 794px, imgWidth = 1588px
     // Соотношение: 210mm / 1588px = 0.1322 мм/пиксель
     // Высота страницы в пикселях: 297mm / 0.1322 = 2246px
-    const pageHeightPx = Math.floor((pdfHeight / pdfWidth) * imgWidth);
+    // Отступы: 20mm сверху и 20mm снизу = 40mm
+    // Полезная высота: 257mm / 0.1322 = 1944px
+    const pageHeightPx = Math.floor(((pdfHeight - 40) / pdfWidth) * imgWidth);
     
     // Разрезаем большой canvas на страницы A4
     let currentY = 0;
@@ -772,10 +776,9 @@ export async function generateContractPDF(contract: ContractData, settings: Sett
       
       const pageImgData = pageCanvas.toDataURL('image/png');
       
-      // Добавляем изображение на страницу PDF
-      // Ширина всегда pdfWidth (210mm), высота пропорциональна
+      // Добавляем изображение на страницу PDF с отступом 20mm сверху
       const scaledHeight = (sliceHeight / imgWidth) * pdfWidth;
-      doc.addImage(pageImgData, 'PNG', 0, 0, pdfWidth, scaledHeight);
+      doc.addImage(pageImgData, 'PNG', 0, 20, pdfWidth, scaledHeight);
       
       currentY += pageHeightPx;
     }
